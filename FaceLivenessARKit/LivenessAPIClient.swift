@@ -20,7 +20,7 @@ final class LivenessAPIClient {
     static let shared = LivenessAPIClient()
 
     // PoC 用本機 server，正式環境換成 HTTPS 域名
-    private let baseURL = "http://192.168.1.115:8002"
+    private let baseURL = "http://100.79.179.62:8002"
 
     func detect(image: UIImage) async throws -> YoloResponse {
         guard let url = URL(string: "\(baseURL)/api/detect") else {
