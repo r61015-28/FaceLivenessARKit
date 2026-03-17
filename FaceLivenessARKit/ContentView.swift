@@ -6,6 +6,9 @@ struct ContentView: View {
     @StateObject private var checker = LivenessChecker()
     @State private var capturedImage: UIImage? = nil
     @State private var labelSaved = false
+    @State private var yoloResult: YoloResponse? = nil
+    @State private var yoloError: String? = nil
+    @State private var isCheckingYolo = false
 
     private let timer = Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()
 
@@ -46,10 +49,14 @@ struct ContentView: View {
 
             checker.tick(dt: 0.1)
 
-            // 偵測 phase 從 counting → done 的瞬間截圖
+            // 偵測 phase 從 counting → done 的瞬間截圖 + 送 YOLO
             if case .done = checker.phase, wasCounting {
-                capturedImage = faceManager.capturePhoto()
+                let photo = faceManager.capturePhoto()
+                capturedImage = photo
                 faceManager.stop()
+                if let photo = photo {
+                    sendToYolo(image: photo)
+                }
             }
         }
         .onReceive(faceManager.$trackingFrameCount) { _ in
@@ -203,14 +210,14 @@ struct ContentView: View {
 
             // 結果卡片
             VStack(spacing: 12) {
-                // 大結果文字
+                // ARKit 結果
                 Text(checker.result.rawValue)
                     .font(.title.bold())
                     .foregroundColor(checker.result == .live ? .green : .red)
 
                 Divider().background(Color.white.opacity(0.3))
 
-                // 各項 check 詳情
+                // ARKit 各項 check 詳情
                 VStack(alignment: .leading, spacing: 6) {
                     ForEach(checker.finalDetails, id: \.self) { detail in
                         Text(detail)
@@ -218,6 +225,36 @@ struct ContentView: View {
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
+                }
+
+                Divider().background(Color.white.opacity(0.3))
+
+                // YOLO 結果
+                if isCheckingYolo {
+                    HStack(spacing: 8) {
+                        ProgressView().tint(.white)
+                        Text("YOLO 驗證中...")
+                            .font(.subheadline)
+                            .foregroundColor(.white.opacity(0.7))
+                    }
+                } else if let yolo = yoloResult {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("YOLO 模型")
+                            .font(.caption.bold())
+                            .foregroundColor(.white.opacity(0.6))
+                        Text(yolo.isLive == true ? "✅ Live" : "❌ Spoof")
+                            .font(.headline.bold())
+                            .foregroundColor(yolo.isLive == true ? .green : .red)
+                        Text("Live \(String(format: "%.1f", yolo.liveProbability * 100))%  /  Spoof \(String(format: "%.1f", yolo.spoofProbability * 100))%")
+                            .font(.system(.caption, design: .monospaced))
+                            .foregroundColor(.white.opacity(0.8))
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                } else if let err = yoloError {
+                    Text("YOLO：\(err)")
+                        .font(.caption)
+                        .foregroundColor(.orange)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
             .frame(maxWidth: .infinity)
@@ -288,11 +325,44 @@ struct ContentView: View {
     private func retryDetection() {
         capturedImage = nil
         labelSaved = false
+        yoloResult = nil
+        yoloError = nil
+        isCheckingYolo = false
         checker.reset()
         faceManager.start()
         // 等 ARKit 重新啟動後開始倒數
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             checker.startCountdown()
+        }
+    }
+
+    private func sendToYolo(image: UIImage) {
+        isCheckingYolo = true
+        yoloResult = nil
+        yoloError = nil
+        Task {
+            do {
+                let result = try await LivenessAPIClient.shared.detect(image: image)
+                await MainActor.run {
+                    yoloResult = result
+                    isCheckingYolo = false
+                }
+            } catch YoloError.noFace {
+                await MainActor.run {
+                    yoloError = "未偵測到人臉"
+                    isCheckingYolo = false
+                }
+            } catch YoloError.serverError(let msg) {
+                await MainActor.run {
+                    yoloError = msg
+                    isCheckingYolo = false
+                }
+            } catch {
+                await MainActor.run {
+                    yoloError = "連線失敗，確認 WiFi 與 server"
+                    isCheckingYolo = false
+                }
+            }
         }
     }
 
