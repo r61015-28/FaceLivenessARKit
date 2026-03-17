@@ -211,9 +211,15 @@ struct ContentView: View {
             // 結果卡片
             VStack(spacing: 12) {
                 // ARKit 結果
-                Text(checker.result.rawValue)
-                    .font(.title.bold())
-                    .foregroundColor(checker.result == .live ? .green : .red)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("ARKit（第一層）")
+                        .font(.caption.bold())
+                        .foregroundColor(.white.opacity(0.6))
+                    Text(checker.result.rawValue)
+                        .font(.title.bold())
+                        .foregroundColor(checker.result == .live ? .green : .red)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 Divider().background(Color.white.opacity(0.3))
 
@@ -239,7 +245,7 @@ struct ContentView: View {
                     }
                 } else if let yolo = yoloResult {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("YOLO 模型")
+                        Text("YOLO（第二層）")
                             .font(.caption.bold())
                             .foregroundColor(.white.opacity(0.6))
                         Text(yolo.isLive == true ? "✅ Live" : "❌ Spoof")
