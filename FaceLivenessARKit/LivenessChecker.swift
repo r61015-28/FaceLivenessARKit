@@ -307,6 +307,14 @@ final class LivenessChecker: ObservableObject {
 
     // MARK: - 資料標記 Log
 
+    /// 目前 CSV 已有幾筆資料（不含 header）
+    func logCount() -> Int {
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let logFile = docs.appendingPathComponent("liveness_log.csv")
+        guard let content = try? String(contentsOf: logFile, encoding: .utf8) else { return 0 }
+        return content.components(separatedBy: "\n").filter { !$0.isEmpty && !$0.hasPrefix("timestamp") }.count
+    }
+
     /// 將本次偵測的所有特徵數值 + 人工標記寫入 CSV
     /// groundTruth: "real" 或 "spoof"
     func saveLog(groundTruth: String) {

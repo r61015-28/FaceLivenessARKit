@@ -228,6 +228,10 @@ struct ContentView: View {
 
             // 標記按鈕：人工標記真人/假人，存 log
             if !labelSaved {
+                Text("目前已收集 \(checker.logCount()) 筆")
+                    .font(.caption)
+                    .foregroundColor(.white.opacity(0.6))
+                    .padding(.top, 8)
                 HStack(spacing: 16) {
                     Button(action: { labelAndSave("real") }) {
                         Text("✅ 標記真人")
@@ -247,9 +251,9 @@ struct ContentView: View {
                     }
                 }
                 .padding(.horizontal, 24)
-                .padding(.top, 12)
+                .padding(.top, 4)
             } else {
-                Text("已儲存 ✓")
+                Text("已儲存 第 \(checker.logCount()) 筆 ✓")
                     .font(.subheadline)
                     .foregroundColor(.green)
                     .padding(.top, 12)
