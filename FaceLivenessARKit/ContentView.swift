@@ -17,6 +17,7 @@ struct ContentView: View {
     var body: some View {
         if !started {
             modeSelectionScreen
+                .onAppear { DataSyncManager.shared.syncAll() }
         } else {
             Group {
                 switch detectionMode {
@@ -452,6 +453,7 @@ struct ARKitDetectionView: View {
         let yoloProb: Float? = yoloResult?.liveProbability
         checker.saveLog(groundTruth: groundTruth, yoloPrediction: yoloPred, yoloLiveProb: yoloProb)
         labelSaved = true
+        DataSyncManager.shared.sync(mode: "arkit")
     }
 
     private func retryDetection() {

@@ -417,6 +417,7 @@ struct PerspectiveDetectionView: View {
         let yoloProb: Float? = yoloResult?.liveProbability
         checker.saveLog(groundTruth: groundTruth, yoloPrediction: yoloPred, yoloLiveProb: yoloProb)
         labelSaved = true
+        DataSyncManager.shared.sync(mode: "perspective")
     }
 
     private func retryDetection() {
