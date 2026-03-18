@@ -1,7 +1,108 @@
 import SwiftUI
 import ARKit
 
+// MARK: - 偵測模式
+
+enum DetectionMode: String, CaseIterable {
+    case arkit       = "ARKit 3D"
+    case perspective = "一般相機"
+}
+
+// MARK: - 主畫面（模式選擇 → 偵測）
+
 struct ContentView: View {
+    @State private var detectionMode: DetectionMode = .perspective
+    @State private var started = false
+
+    var body: some View {
+        if !started {
+            modeSelectionScreen
+        } else {
+            Group {
+                switch detectionMode {
+                case .arkit:
+                    ARKitDetectionView(onBack: { started = false })
+                case .perspective:
+                    PerspectiveDetectionView(onBack: { started = false })
+                }
+            }
+        }
+    }
+
+    private var modeSelectionScreen: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                Text("Liveness Detection")
+                    .font(.title.bold())
+                    .foregroundColor(.white)
+                    .padding(.top, 100)
+
+                Spacer()
+
+                // 模式選擇
+                VStack(spacing: 20) {
+                    Text("選擇偵測模式")
+                        .font(.headline)
+                        .foregroundColor(.white.opacity(0.8))
+
+                    Picker("", selection: $detectionMode) {
+                        ForEach(DetectionMode.allCases, id: \.self) { mode in
+                            Text(mode.rawValue).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(.horizontal, 40)
+
+                    // 模式說明
+                    Group {
+                        if detectionMode == .arkit {
+                            VStack(spacing: 6) {
+                                Text("ARKit 3D 深度偵測")
+                                    .font(.subheadline.bold())
+                                Text("需要 TrueDepth 相機（Face ID 機型）")
+                                Text("使用結構光 3D + 眼球追蹤 + BlendShape")
+                            }
+                        } else {
+                            VStack(spacing: 6) {
+                                Text("透視畸變偵測")
+                                    .font(.subheadline.bold())
+                                Text("所有 iOS 裝置皆可使用")
+                                Text("引導靠近 → 分析透視畸變 + EAR 眨眼")
+                            }
+                        }
+                    }
+                    .font(.caption)
+                    .foregroundColor(.white.opacity(0.6))
+                    .multilineTextAlignment(.center)
+                }
+                .padding(24)
+                .background(Color.white.opacity(0.08))
+                .cornerRadius(20)
+                .padding(.horizontal, 24)
+
+                Spacer()
+
+                Button(action: { started = true }) {
+                    Text("開始偵測")
+                        .font(.title2.bold())
+                        .foregroundColor(.white)
+                        .frame(width: 220, height: 56)
+                        .background(Color.blue)
+                        .cornerRadius(28)
+                }
+                .padding(.bottom, 80)
+            }
+        }
+    }
+}
+
+// MARK: - ARKit 偵測畫面（原有邏輯）
+
+struct ARKitDetectionView: View {
+    var onBack: () -> Void
+
     @StateObject private var faceManager = ARFaceManager()
     @StateObject private var checker = LivenessChecker()
     @State private var capturedImage: UIImage? = nil
@@ -72,19 +173,38 @@ struct ContentView: View {
         }
     }
 
-    // MARK: - 待機畫面
+    // MARK: - 待機畫面（等 ARKit 啟動後自動開始）
 
     private var idleOverlay: some View {
         VStack {
-            // 頂部標題
-            Text("3D Liveness PoC")
+            HStack {
+                Button(action: {
+                    faceManager.stop()
+                    onBack()
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "chevron.left")
+                        Text("返回")
+                    }
+                    .font(.subheadline)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(Color.black.opacity(0.5))
+                    .cornerRadius(20)
+                }
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 60)
+
+            Text("ARKit 3D 模式")
                 .font(.title3.bold())
                 .foregroundColor(.white)
-                .padding(.top, 80)
+                .padding(.top, 8)
 
             Spacer()
 
-            // 說明文字
             VStack(spacing: 8) {
                 Text("請將臉對準鏡頭")
                     .font(.headline)
@@ -100,7 +220,6 @@ struct ContentView: View {
 
             Spacer()
 
-            // 開始按鈕
             Button(action: startDetection) {
                 Text("開始偵測")
                     .font(.title2.bold())
@@ -117,13 +236,11 @@ struct ContentView: View {
 
     private func countingOverlay(remaining: Double) -> some View {
         ZStack {
-            // 角落圓點（每次一個，共出現 3 次）
             if let dot = checker.currentDot {
                 dotView(corner: dot)
             }
 
             VStack {
-                // 頂部狀態
                 HStack {
                     Circle()
                         .fill(faceManager.isFaceDetected ? Color.green : Color.red)
@@ -143,7 +260,6 @@ struct ContentView: View {
 
                 Spacer()
 
-                // 倒數計時（大字）
                 Text(String(format: "%.1f", max(remaining, 0)))
                     .font(.system(size: 72, weight: .bold, design: .rounded))
                     .foregroundColor(.white)
@@ -151,7 +267,6 @@ struct ContentView: View {
 
                 Spacer()
 
-                // 即時 check 面板
                 VStack(alignment: .leading, spacing: 4) {
                     ForEach(checker.liveDetails, id: \.self) { detail in
                         Text(detail)
@@ -175,8 +290,8 @@ struct ContentView: View {
         GeometryReader { geo in
             let size: CGFloat = 28
             let marginX: CGFloat = 44
-            let marginTop: CGFloat = 130   // 避開狀態列
-            let marginBottom: CGFloat = 180 // 避開 check 面板
+            let marginTop: CGFloat = 130
+            let marginBottom: CGFloat = 180
 
             let pos: CGPoint = {
                 switch corner {
@@ -208,9 +323,7 @@ struct ContentView: View {
         VStack(spacing: 0) {
             Spacer()
 
-            // 結果卡片
             VStack(spacing: 12) {
-                // ARKit 結果
                 VStack(alignment: .leading, spacing: 4) {
                     Text("ARKit（第一層）")
                         .font(.caption.bold())
@@ -223,7 +336,6 @@ struct ContentView: View {
 
                 Divider().background(Color.white.opacity(0.3))
 
-                // ARKit 各項 check 詳情
                 VStack(alignment: .leading, spacing: 6) {
                     ForEach(checker.finalDetails, id: \.self) { detail in
                         Text(detail)
@@ -235,7 +347,6 @@ struct ContentView: View {
 
                 Divider().background(Color.white.opacity(0.3))
 
-                // YOLO 結果
                 if isCheckingYolo {
                     HStack(spacing: 8) {
                         ProgressView().tint(.white)
@@ -269,7 +380,6 @@ struct ContentView: View {
             .cornerRadius(20)
             .padding(.horizontal, 12)
 
-            // 標記按鈕：人工標記真人/假人，存 log
             if !labelSaved {
                 Text("目前已收集 \(checker.logCount()) 筆")
                     .font(.caption)
@@ -302,15 +412,28 @@ struct ContentView: View {
                     .padding(.top, 12)
             }
 
-            // 再次偵測按鈕
-            Button(action: retryDetection) {
-                Text("再次偵測")
-                    .font(.headline)
-                    .foregroundColor(.white)
-                    .frame(width: 200, height: 50)
-                    .background(Color.blue)
-                    .cornerRadius(25)
+            HStack(spacing: 16) {
+                Button(action: {
+                    faceManager.stop()
+                    onBack()
+                }) {
+                    Text("返回選擇")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity, minHeight: 50)
+                        .background(Color.gray.opacity(0.6))
+                        .cornerRadius(25)
+                }
+                Button(action: retryDetection) {
+                    Text("再次偵測")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity, minHeight: 50)
+                        .background(Color.blue)
+                        .cornerRadius(25)
+                }
             }
+            .padding(.horizontal, 24)
             .padding(.top, 12)
             .padding(.bottom, 40)
         }
@@ -324,7 +447,10 @@ struct ContentView: View {
     }
 
     private func labelAndSave(_ groundTruth: String) {
-        checker.saveLog(groundTruth: groundTruth)
+        guard !labelSaved else { return }  // 防重複標記
+        let yoloPred: String? = yoloResult.map { $0.isLive == true ? "live" : "spoof" }
+        let yoloProb: Float? = yoloResult?.liveProbability
+        checker.saveLog(groundTruth: groundTruth, yoloPrediction: yoloPred, yoloLiveProb: yoloProb)
         labelSaved = true
     }
 
@@ -336,7 +462,6 @@ struct ContentView: View {
         isCheckingYolo = false
         checker.reset()
         faceManager.start()
-        // 等 ARKit 重新啟動後開始倒數
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             checker.startCountdown()
         }
@@ -354,26 +479,13 @@ struct ContentView: View {
                     isCheckingYolo = false
                 }
             } catch YoloError.noFace {
-                await MainActor.run {
-                    yoloError = "未偵測到人臉"
-                    isCheckingYolo = false
-                }
+                await MainActor.run { yoloError = "未偵測到人臉"; isCheckingYolo = false }
             } catch YoloError.serverError(let msg) {
-                await MainActor.run {
-                    yoloError = msg
-                    isCheckingYolo = false
-                }
+                await MainActor.run { yoloError = msg; isCheckingYolo = false }
             } catch {
-                await MainActor.run {
-                    yoloError = "連線失敗，確認 WiFi 與 server"
-                    isCheckingYolo = false
-                }
+                await MainActor.run { yoloError = "連線失敗，確認 WiFi 與 server"; isCheckingYolo = false }
             }
         }
-    }
-
-    private var resultColor: Color {
-        checker.result == .live ? .green : .red
     }
 }
 

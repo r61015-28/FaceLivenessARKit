@@ -13,6 +13,9 @@
 		A1000004 /* LivenessChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000004 /* LivenessChecker.swift */; };
 		A1000005 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A2000005 /* Assets.xcassets */; };
 		A1000006 /* LivenessAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000007 /* LivenessAPIClient.swift */; };
+		A1000007 /* CameraManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000008 /* CameraManager.swift */; };
+		A1000008 /* PerspectiveLivenessChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000009 /* PerspectiveLivenessChecker.swift */; };
+		A1000009 /* PerspectiveDetectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000A /* PerspectiveDetectionView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -23,6 +26,9 @@
 		A2000005 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A2000006 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A2000007 /* LivenessAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LivenessAPIClient.swift; sourceTree = "<group>"; };
+		A2000008 /* CameraManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraManager.swift; sourceTree = "<group>"; };
+		A2000009 /* PerspectiveLivenessChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerspectiveLivenessChecker.swift; sourceTree = "<group>"; };
+		A200000A /* PerspectiveDetectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerspectiveDetectionView.swift; sourceTree = "<group>"; };
 		A3000001 /* FaceLivenessARKit.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FaceLivenessARKit.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -53,6 +59,9 @@
 				A2000003 /* ARFaceManager.swift */,
 				A2000004 /* LivenessChecker.swift */,
 				A2000007 /* LivenessAPIClient.swift */,
+				A2000008 /* CameraManager.swift */,
+				A2000009 /* PerspectiveLivenessChecker.swift */,
+				A200000A /* PerspectiveDetectionView.swift */,
 				A2000005 /* Assets.xcassets */,
 				A2000006 /* Info.plist */,
 			);
@@ -141,6 +150,9 @@
 				A1000003 /* ARFaceManager.swift in Sources */,
 				A1000004 /* LivenessChecker.swift in Sources */,
 				A1000006 /* LivenessAPIClient.swift in Sources */,
+				A1000007 /* CameraManager.swift in Sources */,
+				A1000008 /* PerspectiveLivenessChecker.swift in Sources */,
+				A1000009 /* PerspectiveDetectionView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -265,7 +277,7 @@
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UIRequiredDeviceCapabilities = arkit;
+				INFOPLIST_KEY_UIRequiredDeviceCapabilities = "";
 				INFOPLIST_KEY_UIRequiresFullScreen = YES;
 				INFOPLIST_KEY_UIStatusBarHidden = NO;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
@@ -297,7 +309,7 @@
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UIRequiredDeviceCapabilities = arkit;
+				INFOPLIST_KEY_UIRequiredDeviceCapabilities = "";
 				INFOPLIST_KEY_UIRequiresFullScreen = YES;
 				INFOPLIST_KEY_UIStatusBarHidden = NO;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;

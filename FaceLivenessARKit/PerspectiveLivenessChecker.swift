@@ -390,8 +390,11 @@ final class PerspectiveLivenessChecker: ObservableObject {
         return content.components(separatedBy: "\n").filter { !$0.isEmpty && !$0.hasPrefix("timestamp") }.count
     }
 
-    func saveLog(groundTruth: String) {
-        let header = "timestamp,groundTruth,prediction,distortionScore,blinkWeight,blinkDetected,earDrop,zoomRatio,frameCount\n"
+    func saveLog(groundTruth: String, yoloPrediction: String? = nil, yoloLiveProb: Float? = nil) {
+        // 幀數不足 = 偵測未完成，資料無意義，不儲存
+        guard frameRecords.count >= 5 else { return }
+
+        let header = "timestamp,groundTruth,prediction,distortionScore,blinkWeight,blinkDetected,earDrop,zoomRatio,frameCount,yoloPrediction,yoloLiveProb\n"
 
         let ts = ISO8601DateFormatter().string(from: Date())
         let prediction = result == .live ? "live" : "spoof"
@@ -403,6 +406,9 @@ final class PerspectiveLivenessChecker: ObservableObject {
         let minEAR = earHistory.min() ?? 0
         let earDrop = maxEAR - minEAR
 
+        let yoloPred = yoloPrediction ?? "N/A"
+        let yoloProb = yoloLiveProb.map { String(format: "%.4f", $0) } ?? "N/A"
+
         let row = [
             ts, groundTruth, prediction,
             String(format: "%.4f", distortionScore),
@@ -410,7 +416,8 @@ final class PerspectiveLivenessChecker: ObservableObject {
             blinkDetected ? "1" : "0",
             String(format: "%.4f", earDrop),
             String(format: "%.4f", zoomRatio),
-            "\(frameRecords.count)"
+            "\(frameRecords.count)",
+            yoloPred, yoloProb
         ].joined(separator: ",") + "\n"
 
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]

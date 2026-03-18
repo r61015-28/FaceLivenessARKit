@@ -317,19 +317,22 @@ final class LivenessChecker: ObservableObject {
 
     /// 將本次偵測的所有特徵數值 + 人工標記寫入 CSV
     /// groundTruth: "real" 或 "spoof"
-    func saveLog(groundTruth: String) {
+    func saveLog(groundTruth: String, yoloPrediction: String? = nil, yoloLiveProb: Float? = nil) {
         let m = lastMetrics
         guard !m.isEmpty else { return }
 
-        let header = "timestamp,groundTruth,prediction,vertexRate,distanceRate,poseRate,trackRate,blinkDetected,maxBlinkL,maxBlinkR,maxBrowUp,gazeMovement,stillGazeVar,variation,totalFrames\n"
+        let header = "timestamp,groundTruth,prediction,vertexRate,distanceRate,poseRate,trackRate,blinkDetected,maxBlinkL,maxBlinkR,maxBrowUp,gazeMovement,stillGazeVar,variation,totalFrames,yoloPrediction,yoloLiveProb\n"
 
         let ts = ISO8601DateFormatter().string(from: Date())
         let prediction = result == .live ? "live" : "spoof"
+        let yoloPred = yoloPrediction ?? "N/A"
+        let yoloProb = yoloLiveProb.map { String(format: "%.4f", $0) } ?? "N/A"
         let row = [
             ts, groundTruth, prediction,
             f(m["vertexRate"]), f(m["distanceRate"]), f(m["poseRate"]), f(m["trackRate"]),
             f(m["blinkDetected"]), f(m["maxBlinkL"]), f(m["maxBlinkR"]), f(m["maxBrowUp"]),
             f(m["gazeMovement"]), f(m["stillGazeVar"]), f(m["variation"]), f(m["totalFrames"]),
+            yoloPred, yoloProb,
         ].joined(separator: ",") + "\n"
 
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]

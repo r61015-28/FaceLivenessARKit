@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>NSCameraUsageDescription</key>
-	<string>需要相機權限來進行 3D 人臉活體偵測</string>
+	<string>需要相機權限來進行人臉活體偵測</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
@@ -11,7 +11,6 @@
 	</dict>
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
-		<string>arkit</string>
 		<string>iphone-ipad-minimum-performance-a12</string>
 	</array>
 </dict>

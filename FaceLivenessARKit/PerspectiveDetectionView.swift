@@ -412,7 +412,10 @@ struct PerspectiveDetectionView: View {
     // MARK: - 動作
 
     private func labelAndSave(_ groundTruth: String) {
-        checker.saveLog(groundTruth: groundTruth)
+        guard !labelSaved else { return }  // 防重複標記
+        let yoloPred: String? = yoloResult.map { $0.isLive == true ? "live" : "spoof" }
+        let yoloProb: Float? = yoloResult?.liveProbability
+        checker.saveLog(groundTruth: groundTruth, yoloPrediction: yoloPred, yoloLiveProb: yoloProb)
         labelSaved = true
     }
 
