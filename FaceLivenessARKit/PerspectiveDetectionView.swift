@@ -8,6 +8,7 @@ struct PerspectiveDetectionView: View {
 
     @StateObject private var cameraManager = CameraManager()
     @StateObject private var checker = PerspectiveLivenessChecker()
+    @ObservedObject private var syncManager = DataSyncManager.shared
     @State private var capturedImage: UIImage? = nil
     @State private var yoloResult: YoloResponse? = nil
     @State private var yoloError: String? = nil
@@ -45,7 +46,13 @@ struct PerspectiveDetectionView: View {
             case .done:
                 doneOverlay
             }
+
+            // 同步 overlay
+            if syncManager.isSyncing {
+                SyncOverlayView(syncManager: syncManager)
+            }
         }
+        .allowsHitTesting(!syncManager.isSyncing)
         .onAppear {
             cameraManager.start()
         }
@@ -451,6 +458,59 @@ struct PerspectiveDetectionView: View {
             } catch {
                 await MainActor.run { yoloError = "連線失敗"; isCheckingYolo = false }
             }
+        }
+    }
+}
+
+// MARK: - 同步進度 Overlay
+
+struct SyncOverlayView: View {
+    @ObservedObject var syncManager: DataSyncManager
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.7)
+                .ignoresSafeArea()
+
+            VStack(spacing: 20) {
+                // 進度環
+                ZStack {
+                    Circle()
+                        .stroke(Color.white.opacity(0.2), lineWidth: 8)
+                        .frame(width: 100, height: 100)
+                    Circle()
+                        .trim(from: 0, to: syncManager.progress)
+                        .stroke(Color.green, style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                        .frame(width: 100, height: 100)
+                        .rotationEffect(.degrees(-90))
+                        .animation(.easeInOut(duration: 0.3), value: syncManager.progress)
+
+                    Text("\(Int(syncManager.progress * 100))%")
+                        .font(.title2.bold())
+                        .foregroundColor(.white)
+                }
+
+                // 狀態文字
+                if let result = syncManager.syncResult {
+                    switch result {
+                    case .success(let accepted):
+                        Text("上傳完成 \(accepted) 筆")
+                            .font(.headline)
+                            .foregroundColor(.green)
+                    case .failure(let msg):
+                        Text("上傳失敗：\(msg)")
+                            .font(.headline)
+                            .foregroundColor(.orange)
+                    }
+                } else {
+                    Text("資料上傳中 \(syncManager.sentRows)/\(syncManager.totalRows)")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                }
+            }
+            .padding(40)
+            .background(Color.black.opacity(0.8))
+            .cornerRadius(24)
         }
     }
 }

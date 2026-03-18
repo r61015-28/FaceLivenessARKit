@@ -17,7 +17,7 @@ struct ContentView: View {
     var body: some View {
         if !started {
             modeSelectionScreen
-                .onAppear { DataSyncManager.shared.syncAll() }
+                .onAppear { DataSyncManager.shared.syncAllSilently() }
         } else {
             Group {
                 switch detectionMode {
@@ -106,6 +106,7 @@ struct ARKitDetectionView: View {
 
     @StateObject private var faceManager = ARFaceManager()
     @StateObject private var checker = LivenessChecker()
+    @ObservedObject private var syncManager = DataSyncManager.shared
     @State private var capturedImage: UIImage? = nil
     @State private var labelSaved = false
     @State private var yoloResult: YoloResponse? = nil
@@ -141,7 +142,13 @@ struct ARKitDetectionView: View {
             case .done:
                 doneOverlay
             }
+
+            // 同步 overlay
+            if syncManager.isSyncing {
+                SyncOverlayView(syncManager: syncManager)
+            }
         }
+        .allowsHitTesting(!syncManager.isSyncing)
         .onAppear {
             faceManager.start()
         }
