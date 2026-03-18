@@ -217,7 +217,7 @@ struct ARKitDetectionView: View {
                 Text("請將臉對準鏡頭")
                     .font(.headline)
                     .foregroundColor(.white)
-                Text("偵測時請跟隨黃色圓點移動視線")
+                Text("偵測時請跟隨圓點（上→下），並眨眼一次")
                     .font(.subheadline)
                     .foregroundColor(.white.opacity(0.7))
             }
@@ -273,6 +273,16 @@ struct ARKitDetectionView: View {
                     .foregroundColor(.white)
                     .shadow(color: .black, radius: 10)
 
+                if !checker.blinkDetected {
+                    Text("請眨眼一次 👁️")
+                        .font(.headline.bold())
+                        .foregroundColor(.yellow)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(Color.black.opacity(0.6))
+                        .cornerRadius(10)
+                }
+
                 Spacer()
 
                 VStack(alignment: .leading, spacing: 4) {
@@ -311,6 +321,10 @@ struct ARKitDetectionView: View {
                     return CGPoint(x: marginX, y: geo.size.height - marginBottom)
                 case .bottomRight:
                     return CGPoint(x: geo.size.width - marginX, y: geo.size.height - marginBottom)
+                case .topCenter:
+                    return CGPoint(x: geo.size.width / 2, y: marginTop)
+                case .bottomCenter:
+                    return CGPoint(x: geo.size.width / 2, y: geo.size.height - marginBottom)
                 }
             }()
 
@@ -456,9 +470,8 @@ struct ARKitDetectionView: View {
 
     private func labelAndSave(_ groundTruth: String) {
         guard !labelSaved else { return }  // 防重複標記
-        let yoloPred: String? = yoloResult.map { $0.isLive == true ? "live" : "spoof" }
-        let yoloProb: Float? = yoloResult?.liveProbability
-        checker.saveLog(groundTruth: groundTruth, yoloPrediction: yoloPred, yoloLiveProb: yoloProb)
+        // YOLO 暫不存入（資料量不足，判斷不準）
+        checker.saveLog(groundTruth: groundTruth)
         labelSaved = true
         DataSyncManager.shared.sync(mode: "arkit")
     }

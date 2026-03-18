@@ -375,7 +375,7 @@ struct PerspectiveDetectionView: View {
     /// 引導橢圓框
     private func guideOval(color: Color) -> some View {
         GeometryReader { geo in
-            let ovalWidth = geo.size.width * 0.65
+            let ovalWidth = geo.size.width * 0.78
             let ovalHeight = ovalWidth * 1.35
 
             Ellipse()
@@ -420,9 +420,8 @@ struct PerspectiveDetectionView: View {
 
     private func labelAndSave(_ groundTruth: String) {
         guard !labelSaved else { return }  // 防重複標記
-        let yoloPred: String? = yoloResult.map { $0.isLive == true ? "live" : "spoof" }
-        let yoloProb: Float? = yoloResult?.liveProbability
-        checker.saveLog(groundTruth: groundTruth, yoloPrediction: yoloPred, yoloLiveProb: yoloProb)
+        // YOLO 暫不存入（資料量不足，判斷不準）
+        checker.saveLog(groundTruth: groundTruth)
         labelSaved = true
         DataSyncManager.shared.sync(mode: "perspective")
     }

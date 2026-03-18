@@ -41,9 +41,9 @@ final class PerspectiveLivenessChecker: ObservableObject {
     // MARK: - 設定
 
     /// 臉寬佔比目標範圍
-    private let startWidthRatio: CGFloat = 0.30    // 開始收集（臉夠大才開始）
-    private let targetWidthRatio: CGFloat = 0.55   // 目標靠近程度
-    private let maxDuration: Double = 3.0          // 最長等待時間（秒）
+    private let startWidthRatio: CGFloat = 0.35    // 開始收集（臉夠大才開始）
+    private let targetWidthRatio: CGFloat = 0.62   // 目標靠近程度
+    private let maxDuration: Double = 1.5          // 最長等待時間（秒）
 
     /// EAR 閾值
     private let earBlinkThreshold: Float = 0.20    // 低於此值 = 眼睛閉合
@@ -109,7 +109,7 @@ final class PerspectiveLivenessChecker: ObservableObject {
 
         // 超時保護
         if elapsed > maxDuration {
-            if frameRecords.count >= 10 {
+            if frameRecords.count >= 8 {
                 finalize()
             } else {
                 result = .spoof
@@ -194,7 +194,7 @@ final class PerspectiveLivenessChecker: ObservableObject {
         statusText = progress >= 1.0 ? "分析中..." : "請繼續靠近"
 
         // 達到目標距離 → 結束
-        if progress >= 1.0 && frameRecords.count >= 15 {
+        if progress >= 1.0 && frameRecords.count >= 8 {
             finalize()
         }
     }

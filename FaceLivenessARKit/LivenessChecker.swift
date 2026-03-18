@@ -26,32 +26,28 @@ final class LivenessChecker: ObservableObject {
 
     enum Corner: CaseIterable, Equatable, Hashable {
         case topLeft, topRight, bottomLeft, bottomRight
-
-        var diagonal: Corner {
-            switch self {
-            case .topLeft:     return .bottomRight
-            case .topRight:    return .bottomLeft
-            case .bottomLeft:  return .topRight
-            case .bottomRight: return .topLeft
-            }
-        }
+        case topCenter, bottomCenter
 
         var label: String {
             switch self {
-            case .topLeft:     return "左上 ↖"
-            case .topRight:    return "右上 ↗"
-            case .bottomLeft:  return "左下 ↙"
-            case .bottomRight: return "右下 ↘"
+            case .topLeft:      return "左上 ↖"
+            case .topRight:     return "右上 ↗"
+            case .bottomLeft:   return "左下 ↙"
+            case .bottomRight:  return "右下 ↘"
+            case .topCenter:    return "正上方 ↑"
+            case .bottomCenter: return "正下方 ↓"
             }
         }
 
         /// 期望視線方向（x: 負=左 正=右, y: 負=下 正=上）
         var expectedGaze: SIMD2<Float> {
             switch self {
-            case .topLeft:     return SIMD2<Float>(-1,  1)
-            case .topRight:    return SIMD2<Float>( 1,  1)
-            case .bottomLeft:  return SIMD2<Float>(-1, -1)
-            case .bottomRight: return SIMD2<Float>( 1, -1)
+            case .topLeft:      return SIMD2<Float>(-1,  1)
+            case .topRight:     return SIMD2<Float>( 1,  1)
+            case .bottomLeft:   return SIMD2<Float>(-1, -1)
+            case .bottomRight:  return SIMD2<Float>( 1, -1)
+            case .topCenter:    return SIMD2<Float>( 0,  1)
+            case .bottomCenter: return SIMD2<Float>( 0, -1)
             }
         }
     }
@@ -69,7 +65,7 @@ final class LivenessChecker: ObservableObject {
 
     // MARK: - 設定
 
-    let countdownDuration: Double = 5.0
+    let countdownDuration: Double = 1.0
     private let phaseDuration: Double
     private let distanceRange: ClosedRange<Float> = 0.20...0.80
     private let minVertexCount = 1000
@@ -80,7 +76,7 @@ final class LivenessChecker: ObservableObject {
     private var currentDotIndex = 0
     private var elapsed: Double = 0
     private var totalFrames = 0
-    private var blinkDetected = false
+    @Published private(set) var blinkDetected = false
 
     /// 基本 check 各自通過幀數
     private var vertexPassCount = 0
@@ -103,7 +99,7 @@ final class LivenessChecker: ObservableObject {
     // MARK: - Init
 
     init() {
-        phaseDuration = countdownDuration / 3.0
+        phaseDuration = countdownDuration / 2.0  // 2 個圓點 → 2 個 phase
     }
 
     // MARK: - 控制
@@ -144,8 +140,8 @@ final class LivenessChecker: ObservableObject {
         guard case .counting(let remaining) = phase else { return }
         elapsed += dt
 
-        // 切換圓點 phase
-        let phaseIdx = min(Int(elapsed / phaseDuration), 2)
+        // 切換圓點 phase（最多 1，對應 2 個圓點）
+        let phaseIdx = min(Int(elapsed / phaseDuration), 1)
         if phaseIdx != currentDotIndex && phaseIdx < dotSequence.count {
             currentDotIndex = phaseIdx
             currentDot = dotSequence[phaseIdx]
@@ -212,6 +208,7 @@ final class LivenessChecker: ObservableObject {
 
         let gazeDir = Self.gazeDirectionText(gazeX: gazeX, gazeY: gazeY)
         checks.append("👁️ 視線：\(gazeDir)　請看 \(dotSequence[currentDotIndex].label)")
+        checks.append("眨眼：\(blinkDetected ? "✓ 已偵測" : "⬜ 請眨眼一次")")
 
         // ── 表情微動記錄（只含臉部表情，不含 gaze）──
         let leftBlink:  Float = blendShapes[.eyeBlinkLeft]?.floatValue  ?? 0
@@ -274,15 +271,8 @@ final class LivenessChecker: ObservableObject {
         summary.append("─────────────────")
         summary.append("共 \(totalFrames) 幀")
 
-        // 最終判定：
-        // 眨眼 → 直接通過（照片不可能眨眼）
-        // OR 眉毛有活動（≥ 0.05）+ 眼球移動量不過高（< 0.65）
-        //    → 有自然微動且不像照片攻擊
-        // 資料依據：真人 gazeMovement 0.34~0.53，照片 0.82~1.55
-        let blinkPass = blinkDetected
-        let naturalFace = maxBrowUp >= 0.05 && gazeMovement >= 0.2
-        let notPhotoAttack = gazeMovement < 0.65
-        let isLive = basicPass && (blinkPass || (naturalFace && notPhotoAttack))
+        // 最終判定：眨眼為加分項（非必要條件）
+        let isLive = basicPass
 
         result = isLive ? .live : .spoof
         summary.append("判定：\(result.rawValue)")
@@ -411,19 +401,17 @@ final class LivenessChecker: ObservableObject {
     /// 真人追蹤圓點：眼球主動往圓點方向轉 → 至少 2/3 phase 方向符合
     /// 照片被隨意移動：gaze 方向隨機，不會系統性對齊圓點方向
     private func computeGazeChallengeCorrelation() -> Float {
-        guard gazeXHistory.count >= 9 && dotSequence.count == 3 else { return 0 }
+        guard gazeYHistory.count >= 6 && dotSequence.count == 2 else { return 0 }
         var matchCount = 0
-        for phaseIdx in 0..<3 {
+        for phaseIdx in 0..<2 {
             let indices = gazePhaseHistory.indices.filter { gazePhaseHistory[$0] == phaseIdx }
             guard indices.count >= 3 else { continue }
-            let avgX = indices.map { gazeXHistory[$0] }.reduce(0, +) / Float(indices.count)
             let avgY = indices.map { gazeYHistory[$0] }.reduce(0, +) / Float(indices.count)
             let exp = dotSequence[phaseIdx].expectedGaze
-            let xMatch = exp.x > 0 ? avgX > 0.01 : avgX < -0.01
             let yMatch = exp.y > 0 ? avgY > 0.01 : avgY < -0.01
-            if xMatch && yMatch { matchCount += 1 }
+            if yMatch { matchCount += 1 }
         }
-        return Float(matchCount) / 3.0
+        return Float(matchCount) / 2.0
     }
 
     // MARK: - 表情微動
@@ -442,13 +430,10 @@ final class LivenessChecker: ObservableObject {
 
     // MARK: - 工具
 
-    /// 固定上→下→上順序，誘發自然眨眼
-    /// 從螢幕頂部突然跳到底部是最容易觸發眨眼的視線移動
+    /// 固定上→下順序，誘發自然眨眼
+    /// 從正上方跳到正下方是最自然的視線移動，容易觸發眨眼
     static func generateDotSequence() -> [Corner] {
-        let topFirst: Corner = Bool.random() ? .topLeft : .topRight
-        let bottomMid = topFirst.diagonal           // 對角（上左→下右 / 上右→下左）
-        let topLast: Corner = topFirst == .topLeft ? .topRight : .topLeft
-        return [topFirst, bottomMid, topLast]
+        return [.topCenter, .bottomCenter]
     }
 
     /// 水平視線：正=看右，負=看左

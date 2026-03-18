@@ -142,9 +142,31 @@ final class DataSyncManager: ObservableObject {
 
     /// 靜默同步（App 啟動時用，不顯示 UI）
     func syncAllSilently() {
+        validateAndClearOldFormat()  // 先清除格式不符的舊版資料
         let modes = ["perspective", "arkit"]
         for mode in modes {
             silentSync(mode: mode)
+        }
+    }
+
+    /// 檢查本地 CSV 格式，若欄位數不符（舊版資料）則清空
+    private func validateAndClearOldFormat() {
+        let specs: [(filename: String, expectedCols: Int)] = [
+            ("liveness_log.csv", 17),       // ARKit：17 欄
+            ("perspective_log.csv", 11),    // 普通相機：11 欄
+        ]
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        for (filename, expectedCols) in specs {
+            let url = docs.appendingPathComponent(filename)
+            guard let content = try? String(contentsOf: url, encoding: .utf8) else { continue }
+            let lines = content.components(separatedBy: "\n").filter { !$0.isEmpty }
+            guard let header = lines.first else { continue }
+            let cols = header.components(separatedBy: ",").count
+            if cols != expectedCols {
+                // 格式不符 → 清空（只保留空檔案，下次寫入時會重建 header）
+                try? "".write(to: url, atomically: true, encoding: .utf8)
+                print("[DataSync] ⚠️ cleared \(filename)（舊格式 \(cols) 欄，預期 \(expectedCols) 欄）")
+            }
         }
     }
 
