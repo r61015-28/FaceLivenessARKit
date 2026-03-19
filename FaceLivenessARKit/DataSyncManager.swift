@@ -140,6 +140,33 @@ final class DataSyncManager: ObservableObject {
         syncResult = nil
     }
 
+    /// 撤銷最後一筆同步（本地 + Server 都刪除）
+    func undoLastSync(mode: String, timestamp: String) {
+        // 1. 刪除本地 CSV 中該 timestamp 的行
+        let filename = mode == "perspective" ? "perspective_log.csv" : "liveness_log.csv"
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let logFile = docs.appendingPathComponent(filename)
+        if let content = try? String(contentsOf: logFile, encoding: .utf8) {
+            var lines = content.components(separatedBy: "\n").filter { !$0.isEmpty }
+            lines.removeAll { $0.hasPrefix(timestamp) }
+            let newContent = lines.joined(separator: "\n") + "\n"
+            try? newContent.write(to: logFile, atomically: true, encoding: .utf8)
+        }
+
+        // 2. 通知 Server 刪除
+        guard let url = URL(string: "\(baseURL)/api/collect/delete") else { return }
+        let payload: [String: Any] = ["mode": mode, "timestamp": timestamp]
+        guard let body = try? JSONSerialization.data(withJSONObject: payload) else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 5
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = body
+        URLSession.shared.dataTask(with: request) { _, _, _ in
+            print("[DataSync] undo mode=\(mode) timestamp=\(timestamp)")
+        }.resume()
+    }
+
     /// 靜默同步（App 啟動時用，不顯示 UI）
     func syncAllSilently() {
         validateAndClearOldFormat()  // 先清除格式不符的舊版資料

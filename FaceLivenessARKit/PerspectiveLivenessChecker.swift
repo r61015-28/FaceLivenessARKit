@@ -37,6 +37,8 @@ final class PerspectiveLivenessChecker: ObservableObject {
     /// 給後端的分數
     private(set) var distortionScore: Float = 0
     private(set) var blinkWeight: Float = 0
+    /// 最後一次 saveLog 的 timestamp（供撤銷用）
+    private(set) var lastSavedTimestamp: String?
 
     // MARK: - 設定
 
@@ -44,6 +46,7 @@ final class PerspectiveLivenessChecker: ObservableObject {
     private let startWidthRatio: CGFloat = 0.35    // 開始收集（臉夠大才開始）
     private let targetWidthRatio: CGFloat = 0.62   // 目標靠近程度
     private let maxDuration: Double = 1.5          // 最長等待時間（秒）
+    private let minCollectionDuration: Double = 0.7 // 最短收集時間（確保有靠近過程）
 
     /// EAR 閾值
     private let earBlinkThreshold: Float = 0.20    // 低於此值 = 眼睛閉合
@@ -52,6 +55,7 @@ final class PerspectiveLivenessChecker: ObservableObject {
     // MARK: - 內部狀態
 
     private var elapsed: Double = 0
+    private var zoomInElapsed: Double = 0  // zoomIn 階段開始後的計時
     private var totalFrames = 0
 
     /// 透視畸變：記錄每幀的特徵點位移
@@ -78,6 +82,7 @@ final class PerspectiveLivenessChecker: ObservableObject {
 
     func startDetection() {
         elapsed = 0
+        zoomInElapsed = 0
         totalFrames = 0
         frameRecords = []
         earHistory = []
@@ -106,6 +111,7 @@ final class PerspectiveLivenessChecker: ObservableObject {
         guard phase != .idle && phase != .done else { return }
 
         elapsed += dt
+        if case .zoomIn = phase { zoomInElapsed += dt }
 
         // 超時保護
         if elapsed > maxDuration {
@@ -141,6 +147,7 @@ final class PerspectiveLivenessChecker: ObservableObject {
         if case .aligning = phase {
             if faceWidthRatio >= startWidthRatio {
                 initialFaceWidth = faceWidthRatio
+                zoomInElapsed = 0  // 重置 zoomIn 計時
                 phase = .zoomIn(progress: 0)
                 statusText = "請緩慢靠近手機"
             } else {
@@ -193,8 +200,8 @@ final class PerspectiveLivenessChecker: ObservableObject {
         liveDetails = checks
         statusText = progress >= 1.0 ? "分析中..." : "請繼續靠近"
 
-        // 達到目標距離 → 結束
-        if progress >= 1.0 && frameRecords.count >= 8 {
+        // 達到目標距離 → 結束（需至少收集 minCollectionDuration 秒，確保有靠近過程）
+        if progress >= 1.0 && frameRecords.count >= 8 && zoomInElapsed >= minCollectionDuration {
             finalize()
         }
     }
@@ -432,6 +439,24 @@ final class PerspectiveLivenessChecker: ObservableObject {
             handle.write(row.data(using: .utf8)!)
             handle.closeFile()
         }
+
+        lastSavedTimestamp = ts
+    }
+
+    /// 移除最後一筆 log（撤銷用）
+    func removeLastLog() {
+        guard let ts = lastSavedTimestamp else { return }
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let logFile = docs.appendingPathComponent("perspective_log.csv")
+        guard let content = try? String(contentsOf: logFile, encoding: .utf8) else {
+            lastSavedTimestamp = nil
+            return
+        }
+        var lines = content.components(separatedBy: "\n").filter { !$0.isEmpty }
+        lines.removeAll { $0.hasPrefix(ts) }
+        let newContent = lines.joined(separator: "\n") + "\n"
+        try? newContent.write(to: logFile, atomically: true, encoding: .utf8)
+        lastSavedTimestamp = nil
     }
 
     // MARK: - 工具

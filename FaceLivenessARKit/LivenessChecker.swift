@@ -62,10 +62,12 @@ final class LivenessChecker: ObservableObject {
 
     /// finalize() 後保存的原始數值，供 log 使用
     private(set) var lastMetrics: [String: Float] = [:]
+    /// 最後一次 saveLog 的 timestamp（供撤銷用）
+    private(set) var lastSavedTimestamp: String?
 
     // MARK: - 設定
 
-    let countdownDuration: Double = 1.0
+    let countdownDuration: Double = 2.0
     private let phaseDuration: Double
     private let distanceRange: ClosedRange<Float> = 0.20...0.80
     private let minVertexCount = 1000
@@ -337,6 +339,24 @@ final class LivenessChecker: ObservableObject {
             handle.write(row.data(using: .utf8)!)
             handle.closeFile()
         }
+
+        lastSavedTimestamp = ts
+    }
+
+    /// 移除最後一筆 log（撤銷用）
+    func removeLastLog() {
+        guard let ts = lastSavedTimestamp else { return }
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let logFile = docs.appendingPathComponent("liveness_log.csv")
+        guard let content = try? String(contentsOf: logFile, encoding: .utf8) else {
+            lastSavedTimestamp = nil
+            return
+        }
+        var lines = content.components(separatedBy: "\n").filter { !$0.isEmpty }
+        lines.removeAll { $0.hasPrefix(ts) }
+        let newContent = lines.joined(separator: "\n") + "\n"
+        try? newContent.write(to: logFile, atomically: true, encoding: .utf8)
+        lastSavedTimestamp = nil
     }
 
     private func f(_ v: Float?) -> String {

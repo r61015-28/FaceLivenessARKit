@@ -239,6 +239,22 @@ struct PerspectiveDetectionView: View {
             Spacer()
 
             VStack(spacing: 12) {
+                // 取消此筆（標記後才顯示，放在最頂部避免誤按）
+                if labelSaved {
+                    HStack {
+                        Spacer()
+                        Button(action: undoLastSave) {
+                            Text("↩ 取消此筆")
+                                .font(.caption.bold())
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 6)
+                                .background(Color.orange.opacity(0.8))
+                                .cornerRadius(8)
+                        }
+                    }
+                }
+
                 // 透視畸變結果
                 VStack(alignment: .leading, spacing: 4) {
                     Text("透視畸變（第一層）")
@@ -391,25 +407,49 @@ struct PerspectiveDetectionView: View {
         if isCheckingYolo {
             HStack(spacing: 8) {
                 ProgressView().tint(.white)
-                Text("YOLO 驗證中...")
+                Text("模型驗證中...")
                     .font(.subheadline)
                     .foregroundColor(.white.opacity(0.7))
             }
         } else if let yolo = yoloResult {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("YOLO（第二層）")
-                    .font(.caption.bold())
-                    .foregroundColor(.white.opacity(0.6))
-                Text(yolo.isLive == true ? "✅ Live" : "❌ Spoof")
-                    .font(.headline.bold())
-                    .foregroundColor(yolo.isLive == true ? .green : .red)
-                Text("Live \(String(format: "%.1f", yolo.liveProbability * 100))%  /  Spoof \(String(format: "%.1f", yolo.spoofProbability * 100))%")
-                    .font(.system(.caption, design: .monospaced))
-                    .foregroundColor(.white.opacity(0.8))
+            VStack(alignment: .leading, spacing: 8) {
+                // v13 (YOLO)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("YOLO v13")
+                        .font(.caption.bold())
+                        .foregroundColor(.white.opacity(0.6))
+                    HStack {
+                        Text(yolo.isLive == true ? "✅ Live" : "❌ Spoof")
+                            .font(.headline.bold())
+                            .foregroundColor(yolo.isLive == true ? .green : .red)
+                        Spacer()
+                        Text("Live \(String(format: "%.1f", yolo.liveProbability * 100))%  /  Spoof \(String(format: "%.1f", yolo.spoofProbability * 100))%")
+                            .font(.system(.caption, design: .monospaced))
+                            .foregroundColor(.white.opacity(0.8))
+                    }
+                }
+
+                // mn3 (Intel anti-spoof)
+                if let mn3 = yolo.mn3 {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Intel mn3")
+                            .font(.caption.bold())
+                            .foregroundColor(.white.opacity(0.6))
+                        HStack {
+                            Text(mn3.isLive ? "✅ Live" : "❌ Spoof")
+                                .font(.headline.bold())
+                                .foregroundColor(mn3.isLive ? .green : .red)
+                            Spacer()
+                            Text("Live \(String(format: "%.1f", mn3.liveProbability * 100))%  /  Spoof \(String(format: "%.1f", mn3.spoofProbability * 100))%")
+                                .font(.system(.caption, design: .monospaced))
+                                .foregroundColor(.white.opacity(0.8))
+                        }
+                    }
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         } else if let err = yoloError {
-            Text("YOLO：\(err)")
+            Text("模型：\(err)")
                 .font(.caption)
                 .foregroundColor(.orange)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -424,6 +464,13 @@ struct PerspectiveDetectionView: View {
         checker.saveLog(groundTruth: groundTruth)
         labelSaved = true
         DataSyncManager.shared.sync(mode: "perspective")
+    }
+
+    private func undoLastSave() {
+        guard let ts = checker.lastSavedTimestamp else { return }
+        checker.removeLastLog()
+        DataSyncManager.shared.undoLastSync(mode: "perspective", timestamp: ts)
+        labelSaved = false
     }
 
     private func retryDetection() {
