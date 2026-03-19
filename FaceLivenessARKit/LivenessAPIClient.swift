@@ -16,6 +16,7 @@ struct YoloResponse {
     let spoofProbability: Float
     let message: String?
     let mn3: ModelResult?
+    let mn3Custom: ModelResult?
 }
 
 enum YoloError: Error {
@@ -71,10 +72,11 @@ final class LivenessAPIClient {
 
         let probs = json["probabilities"] as? [String: Double] ?? [:]
 
+        let models = json["models"] as? [String: Any] ?? [:]
+
         // 解析 mn3 結果
         var mn3Result: ModelResult? = nil
-        if let models = json["models"] as? [String: Any],
-           let mn3 = models["mn3"] as? [String: Any],
+        if let mn3 = models["mn3"] as? [String: Any],
            let mn3Probs = mn3["probabilities"] as? [String: Double] {
             mn3Result = ModelResult(
                 prediction: mn3["prediction"] as? String ?? "unknown",
@@ -85,6 +87,19 @@ final class LivenessAPIClient {
             )
         }
 
+        // 解析 mn3_custom 結果
+        var mn3CustomResult: ModelResult? = nil
+        if let mc = models["mn3_custom"] as? [String: Any],
+           let mcProbs = mc["probabilities"] as? [String: Double] {
+            mn3CustomResult = ModelResult(
+                prediction: mc["prediction"] as? String ?? "unknown",
+                confidence: Float(mc["confidence"] as? Double ?? 0),
+                liveProbability: Float(mcProbs["live"] ?? 0),
+                spoofProbability: Float(mcProbs["spoof"] ?? 0),
+                isLive: mc["is_live"] as? Bool ?? false
+            )
+        }
+
         return YoloResponse(
             faceDetected: faceDetected,
             isLive: json["is_live"] as? Bool,
@@ -92,7 +107,8 @@ final class LivenessAPIClient {
             liveProbability: Float(probs["live"] ?? 0),
             spoofProbability: Float(probs["spoof"] ?? 0),
             message: json["message"] as? String,
-            mn3: mn3Result
+            mn3: mn3Result,
+            mn3Custom: mn3CustomResult
         )
     }
 }

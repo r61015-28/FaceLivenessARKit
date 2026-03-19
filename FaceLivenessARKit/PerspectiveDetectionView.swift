@@ -446,6 +446,24 @@ struct PerspectiveDetectionView: View {
                         }
                     }
                 }
+
+                // mn3_custom (自訓練 MobileNetV3-Large)
+                if let mc = yolo.mn3Custom {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("mn3_custom（自訓練）")
+                            .font(.caption.bold())
+                            .foregroundColor(.white.opacity(0.6))
+                        HStack {
+                            Text(mc.isLive ? "✅ Live" : "❌ Spoof")
+                                .font(.headline.bold())
+                                .foregroundColor(mc.isLive ? .green : .red)
+                            Spacer()
+                            Text("Live \(String(format: "%.1f", mc.liveProbability * 100))%  /  Spoof \(String(format: "%.1f", mc.spoofProbability * 100))%")
+                                .font(.system(.caption, design: .monospaced))
+                                .foregroundColor(.white.opacity(0.8))
+                        }
+                    }
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         } else if let err = yoloError {
