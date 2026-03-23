@@ -30,7 +30,7 @@ final class DataSyncManager: ObservableObject {
 
     /// 與 LivenessAPIClient 共用同一個 baseURL
     private var baseURL: String {
-        return "http://100.79.179.62:8002"
+        return "http://omninano.myds.me:8001"
     }
 
     private let batchSize = 10
